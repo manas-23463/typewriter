@@ -19,6 +19,7 @@ pip install fastapi uvicorn python-multipart openai-whisper moviepy numpy pillow
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware
 import whisper
 import os
 import tempfile
@@ -46,10 +47,11 @@ class AudioTypewriterVideo:
             "/System/Library/Fonts/Arial.ttf",      # macOS Arial
             "/Library/Fonts/Arial Bold.ttf",        # Bold Arial
             "/Library/Fonts/Helvetica.ttc",         # Helvetica
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",  # Linux
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",  # Linux
             "Arial.ttf", 
             "arial.ttf", 
-            "/Library/Fonts/Arial.ttf", 
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            "/Library/Fonts/Arial.ttf"
         ]:
             if os.path.exists(font):
                 return font
@@ -192,8 +194,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add CORS middleware for web access
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure this properly for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Create output directory
-OUTPUT_DIR = "output_videos"
+OUTPUT_DIR = os.environ.get("OUTPUT_DIR", "output_videos")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Global video creator instance
@@ -209,7 +220,8 @@ async def root():
         "endpoints": {
             "/create-video": "POST - Upload audio file and get typewriter video",
             "/health": "GET - Check API health"
-        }
+        },
+        "deployment": "Render"
     }
 
 
@@ -283,4 +295,5 @@ async def create_typewriter_video(audio_file: UploadFile = File(...)):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port) 
